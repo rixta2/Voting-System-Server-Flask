@@ -5,23 +5,20 @@ from flask_sqlalchemy import SQLAlchemy
 app = Flask(__name__)
 
 # Database configuration
-
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:pass@localhost/questival'
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:mypass@localhost/questival_db'
 DATABASE_URL = os.getenv("DATABASE_URL").replace("postgres://", "postgresql://")
-
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
-
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-@app.route('/get_score', methods=['GET'])
+@app.route('/get_score', methods=['POST'])  # Change to POST
 def get_score():
-    name = request.args.get('name')
+    data = request.json
+    name = data.get('name')  # Extract from JSON body
+
     if not name:
         return jsonify({'error': 'Name parameter is required'}), 400
-    
+
     score_entry = db.session.execute(db.text("SELECT score FROM questival WHERE name = :name"), {'name': name}).fetchone()
     if not score_entry:
         return jsonify({'error': 'Name not found'}), 404
@@ -48,7 +45,6 @@ def update_score():
     
     return jsonify({'message': 'Score updated successfully'})
 
-# **NEW ENDPOINT** to increment score
 @app.route('/increment_score', methods=['POST'])
 def increment_score():
     data = request.json
