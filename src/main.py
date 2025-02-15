@@ -7,5 +7,6 @@ if __name__ == '__main__':
         logging.basicConfig(level=logging.DEBUG)
     else:
         logging.basicConfig(level=logging.INFO)
+    init_api(app, socketio)
     socketio.run(app, host='0.0.0.0', port=7373, debug=True)
-    init_api()
+    
