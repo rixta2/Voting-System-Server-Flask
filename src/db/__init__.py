@@ -1,4 +1,3 @@
-from flask_sqlalchemy import SQLAlchemy
 import os
 import psycopg2  # Required for direct PostgreSQL connections
 from sqlalchemy import create_engine
@@ -8,9 +7,8 @@ import sys
 from dotenv import load_dotenv
 import urllib.parse
 import logging
+from .database import db
 
-
-db = SQLAlchemy()
 
 if __debug__: 
     load_dotenv(os.path.join(os.path.dirname(__file__), "../..", ".env"))
@@ -46,6 +44,7 @@ def init_db(app:Flask):
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
     ensure_postgres_db(db_url)
+    from .models import factions
 
     db.init_app(app)
 
