@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 import urllib.parse
 import logging
 from .database import db
-
+from .models import factions, insert_initial_factions
 
 if __debug__: 
     load_dotenv(os.path.join(os.path.dirname(__file__), "../..", ".env"))
@@ -44,7 +44,6 @@ def init_db(app:Flask):
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
     ensure_postgres_db(db_url)
-    from .models import factions
 
     db.init_app(app)
 
@@ -52,3 +51,4 @@ def init_db(app:Flask):
         db.create_all()
         logging.info("Tables created successfully")
         
+        insert_initial_factions()
