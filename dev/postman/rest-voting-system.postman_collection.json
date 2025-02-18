@@ -1,0 +1,63 @@
+{
+	"info": {
+		"_postman_id": "3c7ae743-3f03-4c07-a371-b356683400d6",
+		"name": "rest-voting-system",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "16545433",
+		"_collection_link": "https://dark-resonance-237314.postman.co/workspace/Personal~2cd9e68e-cc37-45d4-a726-111f032fbd9d/collection/16545433-3c7ae743-3f03-4c07-a371-b356683400d6?action=share&source=collection_link&creator=16545433"
+	},
+	"item": [
+		{
+			"name": "/score",
+			"item": [
+				{
+					"name": "get_faction_score",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://0.0.0.0:7373/score/lost",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "7373",
+							"path": [
+								"score",
+								"lost"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "increment_faction_score",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://0.0.0.0:7373/score/increment/rebel",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "7373",
+							"path": [
+								"score",
+								"increment",
+								"rebel"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

@@ -1,12 +1,21 @@
-from . import app, socketio
+from fastapi import FastAPI
+from contextlib import asynccontextmanager
 import logging
-from .api.api import init_api
+import logging
+import uvicorn
+from .service import register_routes
+from .db import init_db
+
+
+
+app = FastAPI()
+init_db()
+register_routes(app)
+
 
 if __name__ == '__main__':
     if __debug__: 
         logging.basicConfig(level=logging.DEBUG)
     else:
         logging.basicConfig(level=logging.INFO)
-    init_api(app, socketio)
-    socketio.run(app, host='0.0.0.0', port=7373, debug=True)
-    
+    uvicorn.run("src.main:app", host="0.0.0.0", port=7373, reload=True)

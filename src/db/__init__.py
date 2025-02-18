@@ -1,19 +1,19 @@
 import os
-import psycopg2  # Required for direct PostgreSQL connections
-from sqlalchemy import create_engine
-from sqlalchemy_utils import database_exists, create_database
-from flask import Flask
 import sys
-from dotenv import load_dotenv
-import urllib.parse
 import logging
-from .database import db
-from .models import factions, insert_initial_factions
+import urllib.parse
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, declarative_base, Session
+from dotenv import load_dotenv
+from sqlalchemy_utils import database_exists, create_database
 
 if __debug__: 
     load_dotenv(os.path.join(os.path.dirname(__file__), "../..", ".env"))
 
+Base = declarative_base()
+
 class Env:
+    """Load required database environment variables"""
     def __init__(self):
         required_vars = ["DATABASE_PREFIX", "DATABASE_HOSTNAME", "DB_USERNAME", "DB_PASSWORD", "DB_DATABASE"]
         missing_vars = [var for var in required_vars if os.getenv(var) is None]
@@ -21,34 +21,40 @@ class Env:
         if missing_vars:
             logging.critical(f"Missing environment variables: {', '.join(missing_vars)}")
             sys.exit(1)
-        
-        self.DATABASE_PREFIX= os.getenv("DATABASE_PREFIX", None) 
-        self.DATABASE_HOSTNAME= os.getenv("DATABASE_HOSTNAME", None)
-        self.DB_USERNAME= os.getenv("DB_USERNAME", None)
-        self.DB_PASSWORD= os.getenv("DB_PASSWORD", None)
-        self.DB_DATABASE= os.getenv("DB_DATABASE", None)
 
-def ensure_postgres_db(db_url:str):
-    engine = create_engine(db_url, echo=True)
+        self.DATABASE_PREFIX = os.getenv("DATABASE_PREFIX")
+        self.DATABASE_HOSTNAME = os.getenv("DATABASE_HOSTNAME")
+        self.DB_USERNAME = os.getenv("DB_USERNAME")
+        self.DB_PASSWORD = os.getenv("DB_PASSWORD")
+        self.DB_DATABASE = os.getenv("DB_DATABASE")
 
-    if not database_exists(engine.url):
-        create_database(engine.url)
-        logging.info(f"✅ Database created: {engine.url}")
+    def get_db_url(self):
+        """Generate a safe SQLAlchemy database URL"""
+        return f"{self.DATABASE_PREFIX}://{self.DB_USERNAME}:{urllib.parse.quote_plus(self.DB_PASSWORD)}@{self.DATABASE_HOSTNAME}/{self.DB_DATABASE}"
 
-def init_db(app:Flask):
-    db_vars = Env()
-    # db_url = f"{db_vars.DATABASE_PREFIX}://{db_vars.DB_USERNAME}:{db_vars.DB_PASSWORD}@{db_vars.DATABASE_HOSTNAME}/{db_vars.DB_DATABASE}"
-    db_url = f"{db_vars.DATABASE_PREFIX}://{db_vars.DB_USERNAME}:{urllib.parse.quote_plus(db_vars.DB_PASSWORD)}@{db_vars.DATABASE_HOSTNAME}/{db_vars.DB_DATABASE}"
-    
-    app.config["SQLALCHEMY_DATABASE_URI"] = db_url
-    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+db_vars = Env()
+DATABASE_URL = db_vars.get_db_url()
+engine = create_engine(DATABASE_URL, echo=True)
 
-    ensure_postgres_db(db_url)
+if not database_exists(engine.url):
+    create_database(engine.url)
+    logging.info(f"✅ Database created: {engine.url}")
 
-    db.init_app(app)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-    with app.app_context():
-        db.create_all()
-        logging.info("Tables created successfully")
-        
-        insert_initial_factions()
+def get_db() -> Session:
+    """FastAPI Dependency for database session"""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+def init_db():
+    """Create all tables & insert initial data"""
+    from .models import Faction, insert_initial_factions 
+
+    Base.metadata.create_all(bind=engine)
+    logging.info("Tables created successfully")
+
+    insert_initial_factions()

@@ -1,6 +1,5 @@
 from flask import Blueprint, request, jsonify
-from src import socketio
-from src.db.models import factions
+from src.db.models import Faction
 from src.db.database import db  # Add this import
 
 score_blueprint = Blueprint('score', __name__, url_prefix="/score")
@@ -8,7 +7,7 @@ score_blueprint = Blueprint('score', __name__, url_prefix="/score")
 @score_blueprint.route('/getScore', methods=['GET'])
 def get_score():
     faction_name = request.args.get("name")
-    faction = factions.query.filter_by(name=faction_name).first()
+    faction = Faction.query.filter_by(name=faction_name).first()
     
     if faction:
         return jsonify({"score": faction.score})
@@ -24,7 +23,7 @@ def update_score():
     if not name or not isinstance(score, int):
         return jsonify({"error": "Invalid input"}), 400
 
-    faction = factions.query.filter_by(name=name).first()
+    faction = Faction.query.filter_by(name=name).first()
     if not faction:
         return jsonify({"error": "Faction not found"}), 404 
 
@@ -41,7 +40,7 @@ def increment_score():
     if not name:
         return jsonify({"error": "Missing 'name' parameter"}), 400
 
-    faction = factions.query.filter_by(name=name.strip()).first()
+    faction = Faction.query.filter_by(name=name.strip()).first()
     if not faction:
         return jsonify({"error": "Faction not found"}), 404 
 
