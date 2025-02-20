@@ -1,1 +1,1 @@
-web: gunicorn flaskapp:app
+web: python -m src.main -O
