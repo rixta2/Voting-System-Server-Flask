@@ -9,6 +9,8 @@ from sqlalchemy_utils import database_exists, create_database
 
 if __debug__: 
     load_dotenv(os.path.join(os.path.dirname(__file__), "../..", ".env"))
+    # Load additional environment variables from dev/docker/.env if not already set
+    load_dotenv(os.path.join(os.path.dirname(__file__), "../../dev/docker/.env"), override=False)
 
 Base = declarative_base()
 
