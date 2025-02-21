@@ -36,3 +36,25 @@ async def increment_faction_score(faction, db: Session = Depends(get_db)):
         return "success"
     else: return Response(content="Faction not found", status_code=404)
 
+@router.post("/setScore/{faction}")
+async def set_faction_score(faction, request: Request, db: Session = Depends(get_db)):
+    if faction in FACTIONS:
+        data = await request.json()
+        score = data.get('score')
+
+        if not isinstance(score, int):
+            return JSONResponse(content={"error": "Invalid input"}, status_code=400)
+
+        db_val: Faction = db.query(Faction).filter_by(name=faction).first()
+        
+        if not db_val:
+            logging.error("Faction not found in db post preliminary validation.")
+            return Response(status_code=500, content="Error finding faction.")
+
+        db_val.score = score
+        db.commit()
+        await broadcast_to_room(faction=faction, message=str(score))
+        return JSONResponse(content={"message": "Score set successfully", "name": faction, "new_score": db_val.score})
+    else:
+        return Response(content="Faction not found", status_code=404)
+

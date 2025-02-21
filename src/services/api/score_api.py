@@ -48,3 +48,21 @@ def increment_score():
     db.session.commit()
 
     return jsonify({"message": "Score incremented", "name": name, "new_score": faction.score})
+
+@score_blueprint.route('/setScore', methods=['POST'])
+def set_score():
+    data = request.json
+    name = data.get('name')
+    score = data.get('score')
+
+    if not name or not isinstance(score, int):
+        return jsonify({"error": "Invalid input"}), 400
+
+    faction = Faction.query.filter_by(name=name).first()
+    if not faction:
+        return jsonify({"error": "Faction not found"}), 404 
+
+    faction.score = score
+    db.session.commit()
+
+    return jsonify({"message": "Score set successfully", "name": name, "new_score": faction.score})
