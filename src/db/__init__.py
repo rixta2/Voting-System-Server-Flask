@@ -3,9 +3,11 @@ import sys
 import logging
 import urllib.parse
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base, Session
+from sqlalchemy.orm import sessionmaker, declarative_base, Session, scoped_session
 from dotenv import load_dotenv
 from sqlalchemy_utils import database_exists, create_database
+from typing import Generator
+from src.utils.constants import FACTIONS, FACTIONS_ARR
 
 if __debug__: 
     load_dotenv(os.path.join(os.path.dirname(__file__), "../..", ".env"))
@@ -43,20 +45,39 @@ if not database_exists(engine.url):
     logging.info(f"✅ Database created: {engine.url}")
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+ScopedSession = scoped_session(SessionLocal) 
 
-def get_db() -> Session:
+def get_db() -> Generator[Session, None, None]:
     """FastAPI Dependency for database session"""
-    db = SessionLocal()
+    db = ScopedSession()
     try:
         yield db
     finally:
         db.close()
+        
+def _init_factions(db: Session): 
+    from .models.faction_model import Faction
+    existing_factions = {faction.name for faction in db.query(Faction.name).all()}
+    missing_factions = [Faction(name=faction, score=0) for faction in FACTIONS if faction.value not in existing_factions]
+
+    if missing_factions:
+        db.add_all(missing_factions)
+        db.commit()
+        
+    logging.info("Factions created successfully")
+    
 
 def init_db():
     """Create all tables & insert initial data"""
-    from .models import Faction, insert_initial_factions 
+    from .models.faction_model import Faction
 
     Base.metadata.create_all(bind=engine)
     logging.info("Tables created successfully")
+    
+    db = next(get_db())  
+    try:
+        _init_factions(db)
+    finally:
+        db.close()
 
-    insert_initial_factions()
+
