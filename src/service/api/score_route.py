@@ -14,11 +14,12 @@ router = APIRouter()
 async def get_faction_score(faction, db: Session = Depends(get_db), auth = Depends(require_api_key)):
     fh = Factions_Handler(db)
     if faction in FACTIONS:
-        if(fh.get_cache(faction)): return ({"score": fh.get_cache().get(faction)})
+        if(fh.get_cache(faction)): 
+            return ({"score": fh.get_cache().get(faction)})
         else:
             logging.error("Faction not found in db post preliminary validation.")
-            return Response(content={"Server Error."}, status_code=500)
-    else: return Response(content={"Faction not found"}, status_code=404)
+            return Response(content="Server Error.", status_code=500)
+    else: return Response(content="Faction not found", status_code=404)
 
 @router.get("/increment/{faction}")
 async def increment_faction_score(faction, db: Session = Depends(get_db), auth = Depends(require_api_key)):
