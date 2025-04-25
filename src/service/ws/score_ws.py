@@ -61,7 +61,7 @@ async def websocket_timed(websocket: WebSocket, faction: str, db: Session = Depe
                 await asyncio.sleep(5) 
                 score = fh.get_cache().get(faction)
                 logging.info(f"Sending timed update: {score}")
-                await websocket.send_text(str(fh.get_cache().get(faction)))
+                await websocket.send_text(str(score))
         except WebSocketDisconnect:
             __faction_rooms_timed[faction].remove(websocket)
             logging.info(f"WebSocket connection closed for faction: {faction}")

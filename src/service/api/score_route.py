@@ -15,25 +15,27 @@ async def get_faction_score(faction, db: Session = Depends(get_db), auth = Depen
     fh = Factions_Handler(db)
     await fh.initialise_cache()
     if faction in FACTIONS:
-        if(fh.get_cache().get(faction)): 
-            return ({"score": fh.get_cache().get(faction)})
+        if fh.get_cache().get(faction): 
+            return {"score": fh.get_cache().get(faction)}
         else:
             logging.error("Faction not found in db post preliminary validation.")
             return Response(content="Server Error.", status_code=500)
-    else: return Response(content="Faction not found", status_code=404)
+    else:
+        return Response(content="Faction not found", status_code=404)
 
 @router.get("/increment/{faction}")
 async def increment_faction_score(faction, db: Session = Depends(get_db), auth = Depends(require_api_key)):
     fh = Factions_Handler(db)
     await fh.initialise_cache()
     if faction in FACTIONS:
-        if(fh.increment_faction_value(faction)):
-            await broadcast_to_room(faction, fh._cache.get(faction))
-            return ({"score": fh.get_cache().get(faction)})
+        if await fh.increment_faction_value(faction):
+            await broadcast_to_room(faction, fh.get_cache().get(faction))
+            return {"score": fh.get_cache().get(faction)}
         else:
             logging.error("Faction not found in db post preliminary validation.")
-            return Response(content={"Server Error."}, status_code=500)
-    else: return Response(content={"Faction not found"}, status_code=404)
+            return Response(content="Server Error.", status_code=500)
+    else:
+        return Response(content="Faction not found", status_code=404)
 
 @router.post("/setScore/{faction}")
 async def set_faction_score(faction, request: Request, db: Session = Depends(get_db), auth = Depends(require_api_key)):
@@ -45,7 +47,7 @@ async def set_faction_score(faction, request: Request, db: Session = Depends(get
 
         if not isinstance(score, int):
             return JSONResponse(content={"error": "Invalid input"}, status_code=400)
-        if fh.set_score(faction, score): 
+        if await fh.set_score(faction, score): 
             await broadcast_to_room(faction=faction, message=str(score))
             return JSONResponse(content={"message": "Score set successfully", "name": faction, "new_score": fh.get_cache().get(faction)})
         else:
@@ -53,4 +55,3 @@ async def set_faction_score(faction, request: Request, db: Session = Depends(get
             return Response(status_code=500, content="Error finding faction.")
     else:
         return Response(content="Faction not found", status_code=404)
-
