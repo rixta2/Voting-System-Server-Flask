@@ -21,13 +21,14 @@ async def keep_alive(websocket: WebSocket, interval: int = 20):
 
 @router.websocket("/{faction}")
 async def websocket_broadcast(websocket: WebSocket, faction: str, db: Session = Depends(get_db)):
-    await Factions_Handler.initialise_cache(db)
-
     if faction in __faction_rooms:
         await websocket.accept()
         __faction_rooms[faction].append(websocket)
         logging.info(f"WebSocket connection accepted for faction: {faction}")
-        await websocket.send_text(str(Factions_Handler.get_score(faction)))
+
+        fh = Factions_Handler(db)
+        score = fh.get_value(faction)
+        await websocket.send_text(str(score))
 
         ping_task = asyncio.create_task(keep_alive(websocket))
 
@@ -37,7 +38,7 @@ async def websocket_broadcast(websocket: WebSocket, faction: str, db: Session = 
                 logging.info(f"Received message: {data}")
                 if data == "get_score":
                     if faction in FACTIONS_ARR:
-                        score = Factions_Handler.get_score(faction)
+                        score = fh.get_value(faction)
                         logging.info(f"Sending score: {score}")
                         await websocket.send_text(str(score))
                     else:
@@ -60,20 +61,21 @@ async def broadcast_to_room(faction: str, message: str):
 
 @router.websocket("/{faction}/timed")
 async def websocket_timed(websocket: WebSocket, faction: str, db: Session = Depends(get_db)):
-    await Factions_Handler.initialise_cache(db)
-
     if faction in __faction_rooms_timed:
         await websocket.accept()
         __faction_rooms_timed[faction].append(websocket)
         logging.info(f"WebSocket connection accepted for faction: {faction}")
-        await websocket.send_text(str(Factions_Handler.get_score(faction)))
+
+        fh = Factions_Handler(db)
+        score = fh.get_value(faction)
+        await websocket.send_text(str(score))
 
         ping_task = asyncio.create_task(keep_alive(websocket))
 
         try:
             while True:
                 await asyncio.sleep(5)
-                score = Factions_Handler.get_score(faction)
+                score = fh.get_value(faction)
                 logging.info(f"Sending timed update: {score}")
                 await websocket.send_text(str(score))
         except WebSocketDisconnect:

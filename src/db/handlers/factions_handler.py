@@ -1,35 +1,36 @@
 from sqlalchemy.orm import Session
 from src.db.models.faction_model import Faction
 from src.utils.constants import FACTIONS_ARR
-import asyncio
 import logging
 
 class Factions_Handler:
-    _cache = {}
-    _lock = asyncio.Lock()
-    _initialised = False
+    def __init__(self, db: Session):
+        self.db = db
 
-    @classmethod
-    async def initialise_cache(cls, db: Session):
-        async with cls._lock:
-            if not cls._initialised:
-                cls._cache = {
-                    f.name: f.score for f in db.query(Faction).all()
-                }
-                cls._initialised = True
+    def get_value(self, faction_name: str) -> int | None:
+        if faction_name in FACTIONS_ARR:
+            db_val = self.db.query(Faction).filter_by(name=faction_name).first()
+            if db_val:
+                return db_val.score
+        logging.error(f"Factions_Handler | get_value | Faction '{faction_name}' not found.")
+        return None
 
-    @classmethod
-    def get_score(cls, name: str) -> int:
-        return cls._cache.get(name)
+    def increment_faction_value(self, faction_name: str) -> bool:
+        if faction_name in FACTIONS_ARR:
+            db_val: Faction = self.db.query(Faction).filter_by(name=faction_name).first()
+            if db_val:
+                db_val.score += 1
+                self.db.commit()
+                return True
+        logging.error("Factions_Handler | increment_faction_value | Invalid faction.")
+        return False
 
-    @classmethod
-    async def increment_score(cls, db: Session, name: str) -> bool:
-        if name in FACTIONS_ARR:
-            async with cls._lock:
-                db_val = db.query(Faction).filter_by(name=name).first()
-                if db_val:
-                    db_val.score += 1
-                    db.commit()
-                    cls._cache[name] = db_val.score
-                    return True
+    def set_score(self, faction_name: str, val: int) -> bool:
+        if faction_name in FACTIONS_ARR:
+            db_val: Faction = self.db.query(Faction).filter_by(name=faction_name).first()
+            if db_val:
+                db_val.score = val
+                self.db.commit()
+                return True
+        logging.error("Factions_Handler | set_score | Invalid faction.")
         return False

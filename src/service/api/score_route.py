@@ -9,13 +9,11 @@ from src.db.handlers.factions_handler import Factions_Handler
 
 router = APIRouter()
 
-
 @router.get("/{faction}")
 async def get_faction_score(faction: str, db: Session = Depends(get_db), auth = Depends(require_api_key)):
-    await Factions_Handler.initialise_cache(db)
-
     if faction in FACTIONS:
-        score = Factions_Handler.get_score(faction)
+        fh = Factions_Handler(db)
+        score = fh.get_value(faction)
         if score is not None:
             return {"score": score}
         else:
@@ -24,15 +22,13 @@ async def get_faction_score(faction: str, db: Session = Depends(get_db), auth = 
     else:
         return Response(content="Faction not found", status_code=404)
 
-
 @router.get("/increment/{faction}")
 async def increment_faction_score(faction: str, db: Session = Depends(get_db), auth = Depends(require_api_key)):
-    await Factions_Handler.initialise_cache(db)
-
     if faction in FACTIONS:
-        success = await Factions_Handler.increment_score(db, faction)
+        fh = Factions_Handler(db)
+        success = fh.increment_faction_value(faction)
         if success:
-            score = Factions_Handler.get_score(faction)
+            score = fh.get_value(faction)
             await broadcast_to_room(faction, score)
             return {"score": score}
         else:
@@ -41,11 +37,8 @@ async def increment_faction_score(faction: str, db: Session = Depends(get_db), a
     else:
         return Response(content="Faction not found", status_code=404)
 
-
 @router.post("/setScore/{faction}")
 async def set_faction_score(faction: str, request: Request, db: Session = Depends(get_db), auth = Depends(require_api_key)):
-    await Factions_Handler.initialise_cache(db)
-
     if faction in FACTIONS:
         data = await request.json()
         score = data.get('score')
@@ -53,13 +46,14 @@ async def set_faction_score(faction: str, request: Request, db: Session = Depend
         if not isinstance(score, int):
             return JSONResponse(content={"error": "Invalid input"}, status_code=400)
 
-        success = await Factions_Handler.set_score(db, faction, score)
+        fh = Factions_Handler(db)
+        success = fh.set_score(faction, score)
         if success:
             await broadcast_to_room(faction=faction, message=str(score))
             return JSONResponse(content={
                 "message": "Score set successfully",
                 "name": faction,
-                "new_score": Factions_Handler.get_score(faction)
+                "new_score": fh.get_value(faction)
             })
         else:
             logging.error("Faction not found in db post preliminary validation.")
