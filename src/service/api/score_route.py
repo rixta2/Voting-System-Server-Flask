@@ -38,7 +38,7 @@ async def increment_faction_score(faction, db: Session = Depends(get_db), auth =
 @router.post("/setScore/{faction}")
 async def set_faction_score(faction, request: Request, db: Session = Depends(get_db), auth = Depends(require_api_key)):
     fh = Factions_Handler(db)
-    fh.initialise_cache()
+    await fh.initialise_cache()
     if faction in FACTIONS:
         data = await request.json()
         score = data.get('score')
