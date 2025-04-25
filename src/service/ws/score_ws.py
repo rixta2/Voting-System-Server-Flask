@@ -30,7 +30,7 @@ async def websocket_broadcast(websocket: WebSocket, faction: str, db: Session = 
         score = fh.get_value(faction)
         await websocket.send_text(str(score))
 
-        ping_task = asyncio.create_task(keep_alive(websocket))
+        # ping_task = asyncio.create_task(keep_alive(websocket))
 
         try:
             while True:
@@ -47,7 +47,7 @@ async def websocket_broadcast(websocket: WebSocket, faction: str, db: Session = 
         except WebSocketDisconnect:
             logging.info(f"WebSocket connection closed for faction: {faction}")
         finally:
-            ping_task.cancel()
+            # ping_task.cancel()
             __faction_rooms[faction].remove(websocket)
     else:
         await websocket.close(reason="Incorrect faction.")
@@ -70,7 +70,7 @@ async def websocket_timed(websocket: WebSocket, faction: str, db: Session = Depe
         score = fh.get_value(faction)
         await websocket.send_text(str(score))
 
-        ping_task = asyncio.create_task(keep_alive(websocket))
+        # ping_task = asyncio.create_task(keep_alive(websocket))
 
         try:
             while True:
@@ -83,7 +83,7 @@ async def websocket_timed(websocket: WebSocket, faction: str, db: Session = Depe
         except Exception as e:
             logging.error(f"Error in updates: {e}")
         finally:
-            ping_task.cancel()
+            # ping_task.cancel()
             __faction_rooms_timed[faction].remove(websocket)
     else:
         await websocket.close(reason="Incorrect faction.")
