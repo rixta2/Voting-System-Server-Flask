@@ -21,25 +21,25 @@ async def keep_alive(websocket: WebSocket, interval: int = 20):
 
 @router.websocket("/{faction}")
 async def websocket_broadcast(websocket: WebSocket, faction: str, db: Session = Depends(get_db)):
-    fh = Factions_Handler(db)
-    await fh.initialise_cache()
-    
-    if faction in __faction_rooms: 
+    await Factions_Handler.initialise_cache(db)
+
+    if faction in __faction_rooms:
         await websocket.accept()
         __faction_rooms[faction].append(websocket)
         logging.info(f"WebSocket connection accepted for faction: {faction}")
-        await websocket.send_text(str(fh.get_cache().get(faction)))
+        await websocket.send_text(str(Factions_Handler.get_score(faction)))
 
         ping_task = asyncio.create_task(keep_alive(websocket))
 
-        try: 
+        try:
             while True:
                 data = await websocket.receive_text()
                 logging.info(f"Received message: {data}")
                 if data == "get_score":
                     if faction in FACTIONS_ARR:
-                        logging.info(f"Sending score: {fh.get_cache().get(faction)}")
-                        await websocket.send_text(str(fh.get_cache().get(faction)))
+                        score = Factions_Handler.get_score(faction)
+                        logging.info(f"Sending score: {score}")
+                        await websocket.send_text(str(score))
                     else:
                         logging.error("Faction not found in database")
                         await websocket.send_text("Faction not found")
@@ -48,7 +48,7 @@ async def websocket_broadcast(websocket: WebSocket, faction: str, db: Session = 
         finally:
             ping_task.cancel()
             __faction_rooms[faction].remove(websocket)
-    else: 
+    else:
         await websocket.close(reason="Incorrect faction.")
         logging.info(f"Connection rejected with incorrect faction: {faction}")
 
@@ -60,21 +60,20 @@ async def broadcast_to_room(faction: str, message: str):
 
 @router.websocket("/{faction}/timed")
 async def websocket_timed(websocket: WebSocket, faction: str, db: Session = Depends(get_db)):
-    fh = Factions_Handler(db)
-    await fh.initialise_cache()
+    await Factions_Handler.initialise_cache(db)
 
-    if faction in __faction_rooms_timed: 
+    if faction in __faction_rooms_timed:
         await websocket.accept()
         __faction_rooms_timed[faction].append(websocket)
         logging.info(f"WebSocket connection accepted for faction: {faction}")
-        await websocket.send_text(str(fh.get_cache().get(faction)))
+        await websocket.send_text(str(Factions_Handler.get_score(faction)))
 
         ping_task = asyncio.create_task(keep_alive(websocket))
 
         try:
             while True:
-                await asyncio.sleep(5) 
-                score = fh.get_cache().get(faction)
+                await asyncio.sleep(5)
+                score = Factions_Handler.get_score(faction)
                 logging.info(f"Sending timed update: {score}")
                 await websocket.send_text(str(score))
         except WebSocketDisconnect:
@@ -84,6 +83,6 @@ async def websocket_timed(websocket: WebSocket, faction: str, db: Session = Depe
         finally:
             ping_task.cancel()
             __faction_rooms_timed[faction].remove(websocket)
-    else: 
+    else:
         await websocket.close(reason="Incorrect faction.")
         logging.info(f"Connection rejected with incorrect faction: {faction}")

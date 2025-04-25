@@ -11,45 +11,56 @@ router = APIRouter()
 
 
 @router.get("/{faction}")
-async def get_faction_score(faction, db: Session = Depends(get_db), auth = Depends(require_api_key)):
-    fh = Factions_Handler(db)
-    await fh.initialise_cache()
+async def get_faction_score(faction: str, db: Session = Depends(get_db), auth = Depends(require_api_key)):
+    await Factions_Handler.initialise_cache(db)
+
     if faction in FACTIONS:
-        if fh.get_cache().get(faction): 
-            return {"score": fh.get_cache().get(faction)}
+        score = Factions_Handler.get_score(faction)
+        if score is not None:
+            return {"score": score}
         else:
             logging.error("Faction not found in db post preliminary validation.")
             return Response(content="Server Error.", status_code=500)
     else:
         return Response(content="Faction not found", status_code=404)
+
 
 @router.get("/increment/{faction}")
-async def increment_faction_score(faction, db: Session = Depends(get_db), auth = Depends(require_api_key)):
-    fh = Factions_Handler(db)
-    await fh.initialise_cache()
+async def increment_faction_score(faction: str, db: Session = Depends(get_db), auth = Depends(require_api_key)):
+    await Factions_Handler.initialise_cache(db)
+
     if faction in FACTIONS:
-        if await fh.increment_faction_value(faction):
-            await broadcast_to_room(faction, fh.get_cache().get(faction))
-            return {"score": fh.get_cache().get(faction)}
+        success = await Factions_Handler.increment_score(db, faction)
+        if success:
+            score = Factions_Handler.get_score(faction)
+            await broadcast_to_room(faction, score)
+            return {"score": score}
         else:
             logging.error("Faction not found in db post preliminary validation.")
             return Response(content="Server Error.", status_code=500)
     else:
         return Response(content="Faction not found", status_code=404)
 
+
 @router.post("/setScore/{faction}")
-async def set_faction_score(faction, request: Request, db: Session = Depends(get_db), auth = Depends(require_api_key)):
-    fh = Factions_Handler(db)
-    await fh.initialise_cache()
+async def set_faction_score(faction: str, request: Request, db: Session = Depends(get_db), auth = Depends(require_api_key)):
+    await Factions_Handler.initialise_cache(db)
+
     if faction in FACTIONS:
         data = await request.json()
         score = data.get('score')
 
         if not isinstance(score, int):
             return JSONResponse(content={"error": "Invalid input"}, status_code=400)
-        if await fh.set_score(faction, score): 
+
+        success = await Factions_Handler.set_score(db, faction, score)
+        if success:
             await broadcast_to_room(faction=faction, message=str(score))
-            return JSONResponse(content={"message": "Score set successfully", "name": faction, "new_score": fh.get_cache().get(faction)})
+            return JSONResponse(content={
+                "message": "Score set successfully",
+                "name": faction,
+                "new_score": Factions_Handler.get_score(faction)
+            })
         else:
             logging.error("Faction not found in db post preliminary validation.")
             return Response(status_code=500, content="Error finding faction.")
