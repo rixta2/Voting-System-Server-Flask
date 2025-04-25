@@ -53,7 +53,7 @@ async def websocket_broadcast(websocket: WebSocket, faction: str, db: Session = 
         await websocket.close(reason="Incorrect faction.")
         logging.info(f"Connection rejected with incorrect faction: {faction}")
 
-async def broadcast_to_room(faction: str, message: str):
+async def broadcast_to_room(faction: str, message: int):
     """Sends a message to all connected clients in a specific room"""
     if faction in __faction_rooms:
         for connection in __faction_rooms[faction]:

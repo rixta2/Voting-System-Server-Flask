@@ -37,6 +37,21 @@ async def increment_faction_score(faction: str, db: Session = Depends(get_db), a
     else:
         return Response(content="Faction not found", status_code=404)
 
+@router.get("/decrement/{faction}")
+async def increment_faction_score(faction: str, db: Session = Depends(get_db), auth = Depends(require_api_key)):
+    if faction in FACTIONS:
+        fh = Factions_Handler(db)
+        success = fh.decrement_faction_value(faction)
+        if success:
+            score = fh.get_value(faction)
+            await broadcast_to_room(faction, score)
+            return {"score": score}
+        else:
+            logging.error("Faction not found in db post preliminary validation.")
+            return Response(content="Server Error.", status_code=500)
+    else:
+        return Response(content="Faction not found", status_code=404)
+
 @router.post("/setScore/{faction}")
 async def set_faction_score(faction: str, request: Request, db: Session = Depends(get_db), auth = Depends(require_api_key)):
     if faction in FACTIONS:
@@ -49,7 +64,7 @@ async def set_faction_score(faction: str, request: Request, db: Session = Depend
         fh = Factions_Handler(db)
         success = fh.set_score(faction, score)
         if success:
-            await broadcast_to_room(faction=faction, message=str(score))
+            await broadcast_to_room(faction=faction, message=score)
             return JSONResponse(content={
                 "message": "Score set successfully",
                 "name": faction,
