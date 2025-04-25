@@ -14,7 +14,8 @@ router = APIRouter()
 @router.websocket("/{faction}")
 async def websocket_broadcast(websocket: WebSocket, faction: str, db: Session = Depends(get_db)):
     fh = Factions_Handler(db)
-    """Handles WebSocket connections for different factions (rooms)"""
+    await fh.initialise_cache()
+    
     if faction in __faction_rooms: 
         await websocket.accept()
         __faction_rooms[faction].append(websocket)
@@ -48,7 +49,8 @@ async def broadcast_to_room(faction: str, message: str):
 @router.websocket("/{faction}/timed")
 async def websocket_timed(websocket: WebSocket, faction: str, db: Session = Depends(get_db)):
     fh = Factions_Handler(db)
-    """Handles WebSocket connections for different factions (rooms)"""
+    await fh.initialise_cache()
+
     if faction in __faction_rooms_timed: 
         await websocket.accept()
         __faction_rooms_timed[faction].append(websocket)

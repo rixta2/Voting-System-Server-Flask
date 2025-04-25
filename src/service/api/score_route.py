@@ -13,6 +13,7 @@ router = APIRouter()
 @router.get("/{faction}")
 async def get_faction_score(faction, db: Session = Depends(get_db), auth = Depends(require_api_key)):
     fh = Factions_Handler(db)
+    await fh.initialise_cache()
     if faction in FACTIONS:
         if(fh.get_cache().get(faction)): 
             return ({"score": fh.get_cache().get(faction)})
