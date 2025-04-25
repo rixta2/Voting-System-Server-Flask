@@ -25,6 +25,7 @@ async def get_faction_score(faction, db: Session = Depends(get_db), auth = Depen
 @router.get("/increment/{faction}")
 async def increment_faction_score(faction, db: Session = Depends(get_db), auth = Depends(require_api_key)):
     fh = Factions_Handler(db)
+    await fh.initialise_cache()
     if faction in FACTIONS:
         if(fh.increment_faction_value(faction)):
             await broadcast_to_room(faction, fh._cache.get(faction))
@@ -37,6 +38,7 @@ async def increment_faction_score(faction, db: Session = Depends(get_db), auth =
 @router.post("/setScore/{faction}")
 async def set_faction_score(faction, request: Request, db: Session = Depends(get_db), auth = Depends(require_api_key)):
     fh = Factions_Handler(db)
+    fh.initialise_cache()
     if faction in FACTIONS:
         data = await request.json()
         score = data.get('score')
