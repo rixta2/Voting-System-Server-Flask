@@ -11,13 +11,13 @@ __faction_rooms: Dict[str, List[WebSocket]] = {faction: [] for faction in FACTIO
 __faction_rooms_timed: Dict[str, List[WebSocket]] = {faction: [] for faction in FACTIONS}
 router = APIRouter()
 
-async def keep_alive(websocket: WebSocket, interval: int = 20):
-    try:
-        while True:
-            await asyncio.sleep(interval)
-            await websocket.send_text("__ping__")
-    except Exception:
-        pass  # Let outer handler handle disconnection
+# async def keep_alive(websocket: WebSocket, interval: int = 20):
+#     try:
+#         while True:
+#             await asyncio.sleep(interval)
+#             await websocket.send_text("__ping__")
+#     except Exception:
+#         pass  # Let outer handler handle disconnection
 
 @router.websocket("/{faction}")
 async def websocket_broadcast(websocket: WebSocket, faction: str, db: Session = Depends(get_db)):
