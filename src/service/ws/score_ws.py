@@ -5,7 +5,7 @@ import logging
 from typing import Dict, List
 from src.db.handlers.factions_handler import Factions_Handler
 from src.db import get_db, Session
-import asyncio 
+import asyncio
 
 __faction_rooms: Dict[str, List[WebSocket]] = {faction: [] for faction in FACTIONS}
 __faction_rooms_timed: Dict[str, List[WebSocket]] = {faction: [] for faction in FACTIONS}
@@ -17,13 +17,13 @@ async def keep_alive(websocket: WebSocket, interval: int = 20):
             await asyncio.sleep(interval)
             await websocket.send_text("__ping__")
     except Exception:
-        pass  # Let the outer handler catch and handle disconnect
+        pass  # Let outer handler handle disconnection
 
 @router.websocket("/{faction}")
 async def websocket_broadcast(websocket: WebSocket, faction: str, db: Session = Depends(get_db)):
     fh = Factions_Handler(db)
     await fh.initialise_cache()
-
+    
     if faction in __faction_rooms: 
         await websocket.accept()
         __faction_rooms[faction].append(websocket)
@@ -32,12 +32,17 @@ async def websocket_broadcast(websocket: WebSocket, faction: str, db: Session = 
 
         ping_task = asyncio.create_task(keep_alive(websocket))
 
-        try:
+        try: 
             while True:
                 data = await websocket.receive_text()
+                logging.info(f"Received message: {data}")
                 if data == "get_score":
-                    score = fh.get_cache().get(faction)
-                    await websocket.send_text(str(score))
+                    if faction in FACTIONS_ARR:
+                        logging.info(f"Sending score: {fh.get_cache().get(faction)}")
+                        await websocket.send_text(str(fh.get_cache().get(faction)))
+                    else:
+                        logging.error("Faction not found in database")
+                        await websocket.send_text("Faction not found")
         except WebSocketDisconnect:
             logging.info(f"WebSocket connection closed for faction: {faction}")
         finally:
@@ -46,6 +51,12 @@ async def websocket_broadcast(websocket: WebSocket, faction: str, db: Session = 
     else: 
         await websocket.close(reason="Incorrect faction.")
         logging.info(f"Connection rejected with incorrect faction: {faction}")
+
+async def broadcast_to_room(faction: str, message: str):
+    """Sends a message to all connected clients in a specific room"""
+    if faction in __faction_rooms:
+        for connection in __faction_rooms[faction]:
+            await connection.send_text(str(message))
 
 @router.websocket("/{faction}/timed")
 async def websocket_timed(websocket: WebSocket, faction: str, db: Session = Depends(get_db)):
@@ -64,6 +75,7 @@ async def websocket_timed(websocket: WebSocket, faction: str, db: Session = Depe
             while True:
                 await asyncio.sleep(5) 
                 score = fh.get_cache().get(faction)
+                logging.info(f"Sending timed update: {score}")
                 await websocket.send_text(str(score))
         except WebSocketDisconnect:
             logging.info(f"WebSocket connection closed for faction: {faction}")
