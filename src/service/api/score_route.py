@@ -11,7 +11,7 @@ router = APIRouter()
 
 @router.get("/{faction}")
 async def get_faction_score(faction: str, db: Session = Depends(get_db), auth = Depends(require_api_key)):
-    if faction in FACTIONS:
+    if faction in [f.value for f in FACTIONS]:
         fh = Factions_Handler(db)
         score = fh.get_value(faction)
         if score is not None:
@@ -24,7 +24,7 @@ async def get_faction_score(faction: str, db: Session = Depends(get_db), auth = 
 
 @router.get("/increment/{faction}")
 async def increment_faction_score(faction: str, db: Session = Depends(get_db), auth = Depends(require_api_key)):
-    if faction in FACTIONS:
+    if faction in [f.value for f in FACTIONS]:
         fh = Factions_Handler(db)
         success = fh.increment_faction_value(faction)
         if success:
@@ -39,7 +39,7 @@ async def increment_faction_score(faction: str, db: Session = Depends(get_db), a
 
 @router.get("/decrement/{faction}")
 async def increment_faction_score(faction: str, db: Session = Depends(get_db), auth = Depends(require_api_key)):
-    if faction in FACTIONS:
+    if faction in [f.value for f in FACTIONS]:
         fh = Factions_Handler(db)
         success = fh.decrement_faction_value(faction)
         if success:
@@ -54,7 +54,7 @@ async def increment_faction_score(faction: str, db: Session = Depends(get_db), a
 
 @router.post("/setScore/{faction}")
 async def set_faction_score(faction: str, request: Request, db: Session = Depends(get_db), auth = Depends(require_api_key)):
-    if faction in FACTIONS:
+    if faction in [f.value for f in FACTIONS]:
         data = await request.json()
         score = data.get('score')
 
