@@ -2,35 +2,27 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, APIRouter, Depends,
 from src.utils.constants import FACTIONS
 from src.utils.constants import FACTIONS_ARR
 import logging
-from typing import Dict, List
+from typing import Dict, Set
 from src.db.handlers.factions_handler import Factions_Handler
 from src.db import get_db, Session
 import asyncio
 
-__faction_rooms: Dict[str, List[WebSocket]] = {faction: [] for faction in FACTIONS}
-__faction_rooms_timed: Dict[str, List[WebSocket]] = {faction: [] for faction in FACTIONS}
-router = APIRouter()
+# Use Set instead of List
+__faction_rooms: Dict[str, Set[WebSocket]] = {faction: set() for faction in FACTIONS}
+__faction_rooms_timed: Dict[str, Set[WebSocket]] = {faction: set() for faction in FACTIONS}
 
-# async def keep_alive(websocket: WebSocket, interval: int = 20):
-#     try:
-#         while True:
-#             await asyncio.sleep(interval)
-#             await websocket.send_text("__ping__")
-#     except Exception:
-#         pass  # Let outer handler handle disconnection
+router = APIRouter()
 
 @router.websocket("/{faction}")
 async def websocket_broadcast(websocket: WebSocket, faction: str, db: Session = Depends(get_db)):
     if faction in __faction_rooms:
         await websocket.accept()
-        __faction_rooms[faction].append(websocket)
+        __faction_rooms[faction].add(websocket)
         logging.info(f"WebSocket connection accepted for faction: {faction}")
 
         fh = Factions_Handler(db)
         score = fh.get_value(faction)
         await websocket.send_text(str(score))
-
-        # ping_task = asyncio.create_task(keep_alive(websocket))
 
         try:
             while True:
@@ -47,35 +39,21 @@ async def websocket_broadcast(websocket: WebSocket, faction: str, db: Session = 
         except WebSocketDisconnect:
             logging.info(f"WebSocket connection closed for faction: {faction}")
         finally:
-            # ping_task.cancel()
-            __faction_rooms[faction].remove(websocket)
+            __faction_rooms[faction].discard(websocket)
     else:
         await websocket.close(reason="Incorrect faction.")
         logging.info(f"Connection rejected with incorrect faction: {faction}")
-
-
-async def broadcast_to_room(faction: str, message: str):
-    if faction in __faction_rooms:
-        for connection in __faction_rooms[faction]:
-            try:
-                await connection.send_text(message)
-            except:
-                # Log the error and remove the closed connection
-                logging.error(f"WebSocket connection closed")
-                __faction_rooms[faction].remove(connection)
 
 @router.websocket("/{faction}/timed")
 async def websocket_timed(websocket: WebSocket, faction: str, db: Session = Depends(get_db)):
     if faction in __faction_rooms_timed:
         await websocket.accept()
-        __faction_rooms_timed[faction].append(websocket)
-        logging.info(f"WebSocket connection accepted for faction: {faction}")
+        __faction_rooms_timed[faction].add(websocket)
+        logging.info(f"WebSocket connection accepted for timed faction: {faction}")
 
         fh = Factions_Handler(db)
         score = fh.get_value(faction)
         await websocket.send_text(str(score))
-
-        # ping_task = asyncio.create_task(keep_alive(websocket))
 
         try:
             while True:
@@ -84,12 +62,35 @@ async def websocket_timed(websocket: WebSocket, faction: str, db: Session = Depe
                 logging.info(f"Sending timed update: {score}")
                 await websocket.send_text(str(score))
         except WebSocketDisconnect:
-            logging.info(f"WebSocket connection closed for faction: {faction}")
+            logging.info(f"WebSocket connection closed for timed faction: {faction}")
         except Exception as e:
-            logging.error(f"Error in updates: {e}")
+            logging.error(f"Error in timed updates: {e}")
         finally:
-            # ping_task.cancel()
-            __faction_rooms_timed[faction].remove(websocket)
+            __faction_rooms_timed[faction].discard(websocket)
     else:
         await websocket.close(reason="Incorrect faction.")
         logging.info(f"Connection rejected with incorrect faction: {faction}")
+
+async def broadcast_to_room(faction: str, message: str):
+    if faction not in __faction_rooms:
+        logging.warning(f"Tried to broadcast to unknown faction: {faction}")
+        return
+
+    connections = set(__faction_rooms[faction])  
+    logging.info(f"[Broadcast] {len(connections)} connections found for faction '{faction}'")
+
+    dead_connections = set()
+
+    for connection in connections:
+        try:
+            await connection.send_text(str(message))
+            logging.info(f"[Broadcast] Sent message to connection {id(connection)}")
+        except Exception as e:
+            logging.error(f"[Broadcast] Failed to send to connection {id(connection)}: {e}")
+            dead_connections.add(connection)
+            
+    for dead in dead_connections:
+        __faction_rooms[faction].discard(dead)
+        logging.info(f"[Broadcast] Removed dead connection {id(dead)} from faction '{faction}'")
+
+    logging.info(f"[Broadcast] After cleanup: {len(__faction_rooms[faction])} active connections remain.")
