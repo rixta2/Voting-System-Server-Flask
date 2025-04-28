@@ -26,11 +26,10 @@ async def get_faction_score(faction: str, db: Session = Depends(get_db), auth = 
 async def increment_faction_score(faction: str, db: Session = Depends(get_db), auth = Depends(require_api_key)):
     if faction in FACTIONS:
         fh = Factions_Handler(db)
-        success = fh.increment_faction_value(faction)
-        if success:
-            score = fh.get_value(faction)
-            await broadcast_to_room(faction, score)
-            return {"score": score}
+        val = fh.increment_faction_value(faction)
+        if val != -1:
+            await broadcast_to_room(faction, val)
+            return {"score": val}
         else:
             logging.error("Faction not found in db post preliminary validation.")
             return Response(content="Server Error.", status_code=500)
@@ -41,11 +40,10 @@ async def increment_faction_score(faction: str, db: Session = Depends(get_db), a
 async def increment_faction_score(faction: str, db: Session = Depends(get_db), auth = Depends(require_api_key)):
     if faction in FACTIONS:
         fh = Factions_Handler(db)
-        success = fh.decrement_faction_value(faction)
-        if success:
-            score = fh.get_value(faction)
-            await broadcast_to_room(faction, score)
-            return {"score": score}
+        val = fh.decrement_faction_value(faction)
+        if val != -1:
+            await broadcast_to_room(faction, val)
+            return {"score": val}
         else:
             logging.error("Faction not found in db post preliminary validation.")
             return Response(content="Server Error.", status_code=500)
