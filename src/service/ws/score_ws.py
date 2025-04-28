@@ -53,11 +53,16 @@ async def websocket_broadcast(websocket: WebSocket, faction: str, db: Session = 
         await websocket.close(reason="Incorrect faction.")
         logging.info(f"Connection rejected with incorrect faction: {faction}")
 
-async def broadcast_to_room(faction: str, message: int):
-    """Sends a message to all connected clients in a specific room"""
+
+async def broadcast_to_room(faction: str, message: str):
     if faction in __faction_rooms:
         for connection in __faction_rooms[faction]:
-            await connection.send_text(str(message))
+            try:
+                await connection.send_text(message)
+            except:
+                # Log the error and remove the closed connection
+                logging.error(f"WebSocket connection closed")
+                __faction_rooms[faction].remove(connection)
 
 @router.websocket("/{faction}/timed")
 async def websocket_timed(websocket: WebSocket, faction: str, db: Session = Depends(get_db)):
