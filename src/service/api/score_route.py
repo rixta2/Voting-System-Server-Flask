@@ -5,13 +5,13 @@ from src.utils.constants import FACTIONS
 import logging
 from src.service.ws.score_ws import broadcast_to_room
 from src.utils.authentication import require_api_key
-from src.db.handlers.factions_handler import Factions_Handler
+from src.db.handlers.factions_handler import Factions_Handler, FACTIONS_ARR
 
 router = APIRouter()
 
 @router.get("/{faction}")
 async def get_faction_score(faction: str, db: Session = Depends(get_db), auth = Depends(require_api_key)):
-    if faction in FACTIONS:
+    if faction in FACTIONS_ARR:
         fh = Factions_Handler(db)
         score = fh.get_value(faction)
         if score is not None:
@@ -24,7 +24,7 @@ async def get_faction_score(faction: str, db: Session = Depends(get_db), auth = 
 
 @router.get("/increment/{faction}")
 async def increment_faction_score(faction: str, db: Session = Depends(get_db), auth = Depends(require_api_key)):
-    if faction in FACTIONS:
+    if faction in FACTIONS_ARR:
         fh = Factions_Handler(db)
         val = fh.increment_faction_value(faction)
         if val != -1:
@@ -38,7 +38,7 @@ async def increment_faction_score(faction: str, db: Session = Depends(get_db), a
 
 @router.get("/decrement/{faction}")
 async def increment_faction_score(faction: str, db: Session = Depends(get_db), auth = Depends(require_api_key)):
-    if faction in FACTIONS:
+    if faction in FACTIONS_ARR:
         fh = Factions_Handler(db)
         val = fh.decrement_faction_value(faction)
         if val != -1:
@@ -52,7 +52,7 @@ async def increment_faction_score(faction: str, db: Session = Depends(get_db), a
 
 @router.post("/setScore/{faction}")
 async def set_faction_score(faction: str, request: Request, db: Session = Depends(get_db), auth = Depends(require_api_key)):
-    if faction in FACTIONS:
+    if faction in FACTIONS_ARR:
         data = await request.json()
         score = data.get('score')
 

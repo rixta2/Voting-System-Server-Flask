@@ -7,11 +7,19 @@ from src.db.handlers.factions_handler import Factions_Handler
 from src.db import get_db, Session
 import asyncio
 
-# Use Set instead of List
 __faction_rooms: Dict[str, Set[WebSocket]] = {faction: set() for faction in FACTIONS}
 __faction_rooms_timed: Dict[str, Set[WebSocket]] = {faction: set() for faction in FACTIONS}
 
 router = APIRouter()
+
+
+async def keep_alive(websocket: WebSocket, interval: int = 20):
+    try:
+        while True:
+            await asyncio.sleep(interval)
+            await websocket.send_text("__ping__")
+    except Exception:
+        pass 
 
 @router.websocket("/{faction}")
 async def websocket_broadcast(websocket: WebSocket, faction: str, db: Session = Depends(get_db)):
@@ -23,7 +31,7 @@ async def websocket_broadcast(websocket: WebSocket, faction: str, db: Session = 
         fh = Factions_Handler(db)
         score = fh.get_value(faction)
         await websocket.send_text(str(score))
-
+        ping_task = asyncio.create_task(keep_alive(websocket))
         try:
             while True:
                 data = await websocket.receive_text()
@@ -39,6 +47,7 @@ async def websocket_broadcast(websocket: WebSocket, faction: str, db: Session = 
         except WebSocketDisconnect:
             logging.info(f"WebSocket connection closed for faction: {faction}")
         finally:
+            ping_task.cancel()
             __faction_rooms[faction].discard(websocket)
     else:
         await websocket.close(reason="Incorrect faction.")
