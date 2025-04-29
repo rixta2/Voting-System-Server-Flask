@@ -75,37 +75,40 @@ async def websocket_timed(websocket: WebSocket, faction: str, db: Session = Depe
         score = fh.get_value(faction)
         await websocket.send_text(str(score))
 
-        # ping_task = asyncio.create_task(keep_alive(websocket))
+        # Create a background task for periodic updates
+        async def send_periodic_updates():
+            try:
+                while True:
+                    await asyncio.sleep(5)
+                    score = fh.get_value(faction)
+                    logging.info(f"Sending timed update: {score}")
+                    await websocket.send_text(str(score))
+            except Exception as e:
+                logging.error(f"Error in periodic updates: {e}")
 
-        last_timed_update = asyncio.get_event_loop().time()
+        # Start the periodic update task
+        periodic_task = asyncio.create_task(send_periodic_updates())
+
         try:
+            # Handle incoming messages immediately (just like the faction route)
             while True:
-                # Use a short timeout to check for messages without blocking periodic updates
-                try:
-                    data = await asyncio.wait_for(websocket.receive_text(), timeout=0.1)
-                    logging.info(f"Received message: {data}")
-                    if data == "get_score":
-                        if faction in FACTIONS_ARR:
-                            score = fh.get_value(faction)
-                            logging.info(f"Sending score: {score}")
-                            await websocket.send_text(str(score))
-                        else:
-                            logging.error("Faction not found in database")
-                            await websocket.send_text("Faction not found")
-                except asyncio.TimeoutError:
-                    # No message received, check if it's time for periodic update
-                    current_time = asyncio.get_event_loop().time()
-                    if current_time - last_timed_update >= 5:
+                data = await websocket.receive_text()
+                logging.info(f"Received message: {data}")
+                if data == "get_score":
+                    if faction in FACTIONS_ARR:
                         score = fh.get_value(faction)
-                        logging.info(f"Sending timed update: {score}")
+                        logging.info(f"Sending score: {score}")
                         await websocket.send_text(str(score))
-                        last_timed_update = current_time
+                    else:
+                        logging.error("Faction not found in database")
+                        await websocket.send_text("Faction not found")
         except WebSocketDisconnect:
             logging.info(f"WebSocket connection closed for faction: {faction}")
         except Exception as e:
             logging.error(f"Error in updates: {e}")
         finally:
-            # ping_task.cancel()
+            # Cancel the periodic update task
+            periodic_task.cancel()
             __faction_rooms_timed[faction].remove(websocket)
     else:
         await websocket.close(reason="Incorrect faction.")
