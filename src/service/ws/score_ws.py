@@ -77,12 +77,29 @@ async def websocket_timed(websocket: WebSocket, faction: str, db: Session = Depe
 
         # ping_task = asyncio.create_task(keep_alive(websocket))
 
+        last_timed_update = asyncio.get_event_loop().time()
         try:
             while True:
-                await asyncio.sleep(5)
-                score = fh.get_value(faction)
-                logging.info(f"Sending timed update: {score}")
-                await websocket.send_text(str(score))
+                # Use a short timeout to check for messages without blocking periodic updates
+                try:
+                    data = await asyncio.wait_for(websocket.receive_text(), timeout=0.1)
+                    logging.info(f"Received message: {data}")
+                    if data == "get_score":
+                        if faction in FACTIONS_ARR:
+                            score = fh.get_value(faction)
+                            logging.info(f"Sending score: {score}")
+                            await websocket.send_text(str(score))
+                        else:
+                            logging.error("Faction not found in database")
+                            await websocket.send_text("Faction not found")
+                except asyncio.TimeoutError:
+                    # No message received, check if it's time for periodic update
+                    current_time = asyncio.get_event_loop().time()
+                    if current_time - last_timed_update >= 5:
+                        score = fh.get_value(faction)
+                        logging.info(f"Sending timed update: {score}")
+                        await websocket.send_text(str(score))
+                        last_timed_update = current_time
         except WebSocketDisconnect:
             logging.info(f"WebSocket connection closed for faction: {faction}")
         except Exception as e:
