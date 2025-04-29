@@ -75,7 +75,7 @@ async def websocket_timed(websocket: WebSocket, faction: str, db: Session = Depe
         score = fh.get_value(faction)
         await websocket.send_text(str(score))
 
-        # Create a background task for periodic updates
+        # Create and start a task for periodic updates
         async def send_periodic_updates():
             try:
                 while True:
@@ -83,21 +83,23 @@ async def websocket_timed(websocket: WebSocket, faction: str, db: Session = Depe
                     score = fh.get_value(faction)
                     logging.info(f"Sending timed update: {score}")
                     await websocket.send_text(str(score))
+            except asyncio.CancelledError:
+                # Exit cleanly when the task is cancelled
+                pass
             except Exception as e:
                 logging.error(f"Error in periodic updates: {e}")
 
-        # Start the periodic update task
         periodic_task = asyncio.create_task(send_periodic_updates())
 
         try:
-            # Handle incoming messages immediately (just like the faction route)
+            # This main loop handles incoming messages
             while True:
                 data = await websocket.receive_text()
                 logging.info(f"Received message: {data}")
                 if data == "get_score":
                     if faction in FACTIONS_ARR:
                         score = fh.get_value(faction)
-                        logging.info(f"Sending score: {score}")
+                        logging.info(f"Sending score on demand: {score}")
                         await websocket.send_text(str(score))
                     else:
                         logging.error("Faction not found in database")
@@ -105,9 +107,9 @@ async def websocket_timed(websocket: WebSocket, faction: str, db: Session = Depe
         except WebSocketDisconnect:
             logging.info(f"WebSocket connection closed for faction: {faction}")
         except Exception as e:
-            logging.error(f"Error in updates: {e}")
+            logging.error(f"Error handling messages: {e}")
         finally:
-            # Cancel the periodic update task
+            # Clean up
             periodic_task.cancel()
             __faction_rooms_timed[faction].remove(websocket)
     else:
