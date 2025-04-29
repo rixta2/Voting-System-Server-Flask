@@ -79,7 +79,7 @@ async def websocket_timed(websocket: WebSocket, faction: str, db: Session = Depe
 
         try:
             while True:
-                await asyncio.sleep(4)
+                await asyncio.sleep(2)
                 score = fh.get_value(faction)
                 logging.info(f"Sending timed update: {score}")
                 await websocket.send_text(str(score))
